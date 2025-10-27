@@ -1,0 +1,25 @@
+ static String compruebaNombre(){
+        String nombres="";
+        String compruebaPueblo="";
+        
+        for (Poblacion pueblo : listaPueblos.values()) {
+            
+            if (pueblo.getPoblacionseo().contains("a") && pueblo.getPoblacionseo().contains("e") && pueblo.getPoblacionseo().contains("i") && pueblo.getPoblacionseo().contains("o") && pueblo.getPoblacionseo().contains("u")){
+                
+               compruebaPueblo = pueblo.getPoblacionseo().replaceFirst("a", "v");
+               compruebaPueblo = compruebaPueblo.replaceFirst("e", "v");
+               compruebaPueblo = compruebaPueblo.replaceFirst("i", "v");
+               compruebaPueblo = compruebaPueblo.replaceFirst("o", "v");
+               compruebaPueblo = compruebaPueblo.replaceFirst("u", "v");
+                
+               if (!(compruebaPueblo.contains("a")) && !(compruebaPueblo.contains("e")) && !(compruebaPueblo.contains("i")) && !(compruebaPueblo.contains("o")) && !(compruebaPueblo.contains("u"))){
+                    
+                   nombres+=pueblo.getPoblacion()+"\n";
+              
+               
+               } 
+            }
+        }
+
+        return nombres;
+    }

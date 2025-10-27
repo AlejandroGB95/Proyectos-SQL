@@ -1,0 +1,57 @@
+IMPORTANTE, PONER SIEMPRE COMENTARIOS
+
+Uso del Like. Pág 114 
+Subconsultas correlacionadas Pág 123
+Funciones de Cadena Pág 139
+Funciones de Conversión Pág 146    
+
+99G999D99 para formateo de dinero tipo 0.000,00
+
+
+Outer Join Pág 161 Siempre a la tabla detalle.
+
+Insert into "tabla"
+Update "tabla"
+Delete from "tabla"
+
+Creación de una tabla, Pág 184
+Ver las tablas que tiene un usuario Pág. 186
+Vista sobre las restricciones de una tabla. Pág. 202
+Modificación de tablas Pág. 205
+Borrar una restricción ejemplo Pág. 207
+Creación y uso de vistas Pág. 209
+Consulta de vistas disponibles Pág. 210
+
+Estructuras de control (If, Case, While, For, Loop) Pág. 221
+
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+RAISE_APPLICATION_ERROR(-20000,'ERROR no hay datos');
+WHEN TOO_MANY_ROWS THEN
+RAISE_APPLICATION_ERROR(-20000,'ERROR demasiados datos');
+WHEN OTHERS THEN
+RAISE_APPLICATION_ERROR(-20000,'Error en la aplicación');
+END;
+
+
+TIMESTAMP TIPO FECHA Y HORA Y SE LLAMA CON SYSTIMESTAMP
+
+Parámetros de entrada,salida y entrada-salida Pág.264
+
+Ver procedimientos o funciones almacenadas Pág. 267
+
+Cursores Pág. 275
+Variable de acoplamiento en cursor. Pág 278
+Cursor y ruptura de secuencia Pág.284
+
+
+Excepciones Pág. 290
+
+Control de transacciones Pág. 300
+
+Triggers Pág. 308
+
+Vistas con informacion de los triggers Pág. 320
+
+Registros y colecciones Pág. 321
+Paquetes Pág. 332

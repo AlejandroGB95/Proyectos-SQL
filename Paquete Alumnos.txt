@@ -1,0 +1,326 @@
+ALTER TABLE ALUMNOS 
+ADD CONSTRAINT C_PRIMARIA_AL PRIMARY KEY (DNI);
+
+
+
+ALTER TABLE ASIGNATURAS 
+ADD CONSTRAINT C_PRIMARIA_ASIG PRIMARY KEY(COD)
+ADD CONSTRAINT NOMBRE_UNICO UNIQUE(NOMBRE);
+
+
+ALTER TABLE NOTAS
+ADD CONSTRAINT C_P_NOTAS PRIMARY KEY (DNI,COD)
+ADD CONSTRAINT C_AJENA_AL FOREIGN KEY (DNI) REFERENCES  ALUMNOS
+ADD CONSTRAINT C_AJENA_ASIG FOREIGN KEY (COD) REFERENCES  ASIGNATURAS; 
+
+
+
+CREATE OR REPLACE PACKAGE gest_alumnos
+AS
+   TYPE tr_alumno IS RECORD
+     (DNIALU ALUMNOS.DNI%TYPE,APENOMBRE ALUMNOS.APENOM%TYPE,DIRECCION ALUMNOS.DIREC%TYPE,POBLACION ALUMNOS.POBLA%TYPE,TELEFONO ALUMNOS.TELEF%TYPE);
+   FUNCTION DEVUELVE_ALUMNO (V_DNI ALUMNOS.DNI%TYPE)
+      RETURN tr_alumno;
+   PROCEDURE insertar_nuevo_alumno(DNI_ALUM ALUMNOS.DNI%TYPE, NOMBRE ALUMNOS.APENOM%TYPE, DIREC ALUMNOS.DIREC%TYPE, POBLACION ALUMNOS.POBLA%TYPE, TELEFONO ALUMNOS.TELEF%TYPE);
+   PROCEDURE modificar_poblacion (DNI_ALUM  ALUMNOS.DNI%TYPE,POBLACION_NUEVA ALUMNOS.POBLA%TYPE);
+   PROCEDURE borrar_alumno(DNI_ALUM  ALUMNOS.DNI%TYPE);
+   PROCEDURE visualizar_datos_alumno (DNI_ALUM  ALUMNOS.DNI%TYPE);
+   PROCEDURE visualizar_notas_alumno (DNI_ALUM  ALUMNOS.DNI%TYPE);
+   PROCEDURE modificar_nota_alumno (dni_alum notas.dni%TYPE, cod_asig notas.cod%TYPE,nota_nueva notas.nota%TYPE);
+   PROCEDURE listar_alumnos;
+
+
+END gest_alumnos;
+/
+
+CREATE OR REPLACE PACKAGE BODY gest_alumnos
+AS
+vr_alumno tr_alumno;
+/****************************************************************************************/
+PROCEDURE insertar_nuevo_alumno(DNI_ALUM ALUMNOS.DNI%TYPE, NOMBRE ALUMNOS.APENOM%TYPE, DIREC ALUMNOS.DIREC%TYPE, POBLACION ALUMNOS.POBLA%TYPE, TELEFONO ALUMNOS.TELEF%TYPE)
+AS
+         v_dni ALUMNOS.DNI%TYPE;
+         dni_repetido EXCEPTION;
+BEGIN
+        DECLARE
+        BEGIN
+            select dni INTO V_DNI from alumnos where dni=dni_alum;
+            RAISE insertar_nuevo_alumno.dni_repetido;     
+        EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+               NULL;
+        END;
+
+        INSERT INTO ALUMNOS VALUES (DNI_ALUM, NOMBRE, DIREC, POBLACION,TELEFONO);
+
+EXCEPTION
+       WHEN dni_repetido THEN 
+           DBMS_OUTPUT.PUT_LINE(‘ERROR, El dni ya existe’);
+ END insertar_nuevo_alumno;
+/****************************************************************************************/
+PROCEDURE modificar_poblacion (DNI_ALUM ALUMNOS.DNI%TYPE,POBLACION_NUEVA ALUMNOS.POBLA%TYPE)
+AS
+     BEGIN
+         UPDATE alumnos SET POBLA = POBLACION_NUEVA WHERE DNI=DNI_ALUM;
+END modificar_poblacion;
+/****************************************************************************************/
+PROCEDURE borrar_alumno(DNI_ALUM ALUMNOS.DNI%TYPE)
+AS
+    BEGIN
+         DELETE FROM ALUMNOS WHERE DNI= DNI_ALUM;
+END borrar_alumno;
+/****************************************************************************************/
+PROCEDURE visualizar_datos_alumno (DNI_ALUM ALUMNOS.DNI%TYPE)
+AS
+    vr_ALUM ALUMNOS%ROWTYPE;
+  BEGIN
+      SELECT * INTO vr_alum FROM ALUMNOS WHERE DNI=DNI_ALUM;
+      DBMS_OUTPUT.PUT_LINE ('DNI: '||vr_alum.dni);
+      DBMS_OUTPUT.PUT_LINE ('APELLIDOS Y NOMBRE: '||vr_alum.apenom);
+      DBMS_OUTPUT.PUT_LINE ('DIRECCIÓN: '||vr_alum.direc);
+      DBMS_OUTPUT.PUT_LINE ('POBLACIÓN '||vr_alum.pobla);
+      DBMS_OUTPUT.PUT_LINE ('TELEFONO '||vr_alum.telef);
+  EXCEPTION
+     WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('ERROR, NO EXISTE EL ALUMNO CON DNI '||DNI_ALUM);
+END visualizar_datos_alumno;
+/****************************************************************************************/
+PROCEDURE visualizar_notas_alumno (DNI_alum ALUMNOS.DNI%TYPE)
+  AS
+    CURSOR c1 is select * from notas where dni=dni_alum;
+  BEGIN
+    FOR vr_al in c1 loop
+       DBMS_OUTPUT.PUT_LINE ('COD_ASIG: '|| vr_al.cod ||' NOTA: '||VR_AL.NOTA);
+    end loop;
+
+END visualizar_notas_alumno;
+/****************************************************************************************/
+PROCEDURE modificar_nota_alumno (
+dni_alum notas.dni%TYPE,
+cod_asig notas.cod%TYPE,
+nota_nueva notas.nota%TYPE)
+      IS
+    v_NotaAntigua NOTAS.NOTA%TYPE;
+   BEGIN
+  SELECT NOTA INTO v_NotaAntigua FROM NOTAS WHERE DNI=dni_alum AND COD=cod_asig;
+UPDATE NOTAS SET NOTA=nota_nueva WHERE DNI=dni_alum  AND COD=cod_asig;
+   DBMS_OUTPUT.PUT_LINE('Nota del alumno cambiada con éxito');
+EXCEPTION
+ WHEN NO_DATA_FOUND THEN
+DBMS_OUTPUT.PUT_LINE('No existe ningun alumno con ese dni o no tiene notas en esa asig');
+end modificar_nota_alumno;
+/****************************************************************************************/
+PROCEDURE listar_alumnos
+ AS
+     CURSOR Cur IS
+     SELECT NOTAS.DNI, APENOM, NOTA, NOMBRE FROM ASIGNATURAS, NOTAS, ALUMNOS
+     WHERE ASIGNATURAS.COD=NOTAS.COD AND ALUMNOS.DNI=NOTAS.DNI ORDER BY APENOM, NOTA DESC;
+  vr_alum Cur%ROWTYPE;
+  v_dni ALUMNOS.DNI%TYPE;
+     BEGIN
+OPEN Cur;
+   LOOP
+    FETCH Cur INTO vr_alum;
+     EXIT WHEN Cur%NOTFOUND;
+
+    IF Cur%ROWCOUNT = 1 THEN
+       DBMS_OUTPUT.PUT_LINE('NOTAS DE... '||UPPER(vr_alum.APENOM));
+  v_dni := vr_alum.DNI;
+    END IF;
+ IF v_dni <> vr_alum.DNI THEN
+       DBMS_OUTPUT.PUT_LINE(CHR(13));
+      DBMS_OUTPUT.PUT_LINE('NOTAS DE... '||UPPER(vr_alum.APENOM));
+   v_dni := vr_alum.DNI;
+  END IF;
+
+   DBMS_OUTPUT.PUT_LINE(vr_alum.NOMBRE||' - '||vr_alum.NOTA);
+LOOP;
+  CLOSE Cur;
+     END visualizar_notas_alumnos;
+/****************************************************************************************/
+
+FUNCTION DEVUELVE_ALUMNO (V_DNI ALUMNOS.DNI%TYPE)
+RETURN tr_alumno
+IS
+    select * into vr_alumno from alumnos where dni=v_dni;
+  return vr_alumno;
+END DEVUELVE_ALUMNO;
+
+
+END gest_alumnos;
+/
+
+
+
+EXECUTE gest_alumnos.insertar_nuevo_alumno(‘2444444’, ‘Martín Jiménez,Fernando’, ‘Real, 28’, ‘Málaga’, ‘987654273’);
+
+EXECUTE gest_alumnos.modificar_poblacion (‘2444444’,’Ronda’);
+
+EXECUTE gest_alumnos.visualizar_datos_alumno(‘2444444’);
+
+EXECUTE gest_alumnos.visualizar_notas_alumno(‘4448242’);
+
+EXECUTE gest_alumnos.borrar_alumno (‘2444444’);
+EXECUTE gest_alumnos.listar_alumnos;
+EXECUTE gest_alumnos.modificar_nota_alumno('12344345','1','7');
+
+
+
+paquete de Aitor
+
+
+PROCEDURE insertar_nuevo_alumno
+  8           (v_DNI ALUMNOS.DNI%TYPE, v_NomApe ALUMNOS.APENOM%TYPE, v_Direccion ALUMNOS.DIREC%TYPE, v_Poblac ALUMNOS.POBLA%TYPE, v_Telefono ALUMNOS.TELEF%TYPE)
+  9        IS
+ 10        v_ComprobDNI ALUMNOS.DNI%TYPE;
+ 11        BEGIN
+ 12        SELECT DNI INTO v_ComprobDNI FROM ALUMNOS WHERE DNI=v_DNI;
+ 13
+ 14    DBMS_OUTPUT.PUT_LINE('ERROR | El DNI ya existe en la tabla...');
+ 15
+ 16         EXCEPTION
+ 17           WHEN NO_DATA_FOUND THEN
+ 18             INSERT I
+NTO ALUMNOS VALUES(v_DNI,v_NomApe,v_Direccion,v_Poblac,v_Telefono);
+ 19     DBMS_OUTPUT.PUT_LINE('El alumno '||v_NomApe||' ha sido insertado con éxito');
+ 20        END insertar_nuevo_alumno;
+
+
+
+PROCEDURE borrar_alumno
+ 24           (v_DNI ALUMNOS.DNI%TYPE)
+ 25        IS
+ 26        v_ComprobDNI ALUMNOS.DNI%TYPE;
+ 27    v_comprobacionDNI NUMBER := 0;
+ 28    v_DNINotas ALUMNOS.DNI%TYPE;
+ 29        BEGIN
+ 30        SELECT DNI INTO v_ComprobDNI FROM ALUMNOS WHERE DNI=v_DNI;
+ 31
+ 32     v_comprobacionDNI := 1;
+ 33
+ 34    SELECT DISTINCT DNI INTO v_DNINotas FROM NOTAS WHERE DNI=v_DNI;
+DBMS_OUTPUT.PUT_LINE('No se puede borrar el alumno, ya que tiene notas en la tabla Notas');
+ 37
+ 38    EXCEPTION
+ 39           WHEN NO_DATA_FOUND THEN
+ 40         IF v_comprobacionDNI = 0 THEN
+ 41              DBMS_OUTPUT.PUT_LINE('No existe ningun alumno con DNI: '||v_DNI);
+ 42     ELSE
+ 43       DELETE FROM ALUMNOS WHERE DNI=v_DNI;
+ 44       DBMS_OUTPUT.PUT_LINE('Alumno borrado con exito');
+ 45     END IF;
+ 46        END borrar_alumno;
+
+
+ PROCEDURE modificar_direccion
+ 50           (v_DNI ALUMNOS.DNI%TYPE, v_Direccion ALUMNOS.DIREC%TYPE)
+ 51        IS
+ 52         v_ComprobDNI ALUMNOS.DNI%TYPE;
+ 53     v_DireccAntigua ALUMNOS.DIREC%TYPE;
+ 54        BEGIN
+ 55        SELECT DNI INTO v_ComprobDNI FROM ALUMNOS WHERE DNI=v_DNI;
+ SELECT NVL(DIREC,'Sin direccion') INTO v_DireccAntigua FROM ALUMNOS WHERE DNI=v_DNI;
+ 58
+ 59    IF v_DireccAntigua = v_Direccion THEN
+ 60       DBMS_OUTPUT.PUT_LINE('La dirección que has introducido es la misma que la que tenía el alumno');
+ 61    ELSE
+ 62       UPDATE ALUMNOS SET DIREC=v_Direccion WHERE DNI=v_DNI;
+ 63       DBMS_OUTPUT.PUT_LINE('Direccion del alumno cambiada con éxito');
+ 64    END IF;
+ 65
+ 66         EXCEPTION
+ 67           WHEN NO_DATA_FOUND THEN
+ 68              DBMS_OUTPUT
+_OUTPUT.PUT_LINE('No existe ningun alumno con DNI: '||v_DNI);
+ 69        END modificar_direccion;
+
+
+PROCEDURE visualizar_datos_alumnos
+ 88           (v_DNI ALUMNOS.DNI%TYPE)
+ 89        IS
+ 90        v_alumno ALUMNOS%ROWTYPE;
+ 91        BEGIN
+ 92        SELECT * INTO v_alumno FROM ALUMNOS WHERE DNI=v_DNI;
+ 93
+ 94    DBMS_OUTPUT.PUT_LINE('DNI: '||v_alumno.DNI);
+ 95    DBMS_OUTPUT.PUT_LINE('NOMBRE Y APELLIDOS: '||v_alumno.APENOM);
+ 96    DBMS_OUTPUT.PUT_LINE('DIRECCION: '||v_alumno.DIREC);
+ 97    DBMS_OUTPUT.PUT_LINE('POBLACION: '||v_alumno.POBLA);
+ 98    DBMS_OUTPUT.PUT_LINE('TELEFONO: '||v_alum
+ '||v_alumno.TELEF);
+ 99
+100    EXCEPTION
+101           WHEN NO_DATA_FOUND THEN
+102              DBMS_OUTPUT.PUT_LINE('No existe ningun alumno con DNI: '||v_DNI);
+103        END visualizar_datos_alumnos;
+
+PROCEDURE modificar_notas
+ 72           (v_DNI ALUMNOS.DNI%TYPE, v_CodAsig NOTAS.COD%TYPE, v_Nota NOTAS.NOTA%TYPE)
+ 73        IS
+ 74         v_NotaAntigua NOTAS.NOTA%TYPE;
+ 75        BEGIN
+ 76        SELECT NOTA INTO v_NotaAntigua FROM NOTAS WHERE DNI=v_DNI AND COD=v_CodAsig;
+UPDATE NOTAS SET NOTA=v_Nota WHERE DNI=v_DNI  AND COD=v_CodAsig;
+ 79       DBMS_OUTPUT.PUT_LINE('Nota del alumno cambiada con éxito');
+ 80
+ 81         EXCEPTION
+ 82           WHEN NO_DATA_FOUND THEN
+DBMS_OUTPUT.PUT_LINE('No existe ningun alumno con ese dni o no tiene notas en esa asig');
+ 84        END modificar_notas;
+
+PROCEDURE visualizar_notas_alumnos
+124        AS
+125      CURSOR Cur IS
+126     SELECT NOTAS.DNI, APENOM, NOTA, NOMBRE FROM ASIGNATURAS, NOTAS, ALUMNOS
+127     WHERE ASIGNATURAS.COD=NOTAS.COD AND ALUMNOS.DNI=NOTAS.DNI ORDER BY APENOM, NOTA DESC;
+128  vr_alum Cur%ROWTYPE;
+129  v_dni ALUMNOS.DNI%TYPE;
+130        BEGIN
+OPEN Cur;
+132   LOOP
+133     FETCH Cur INTO vr_alum;
+134     EXIT WHEN Cur%NOTFOUND;
+135
+136     IF Cur%ROWCOUNT = 1 THEN
+137        DBMS_OUTPUT.PUT_LINE('NOTAS DE... '||UPPER(vr_alum.APENOM));
+138    v_dni := vr_alum.DNI;
+139     END IF;
+ IF v_dni <> vr_alum.DNI THEN
+142        DBMS_OUTPUT.PUT_LINE(CHR(13));
+      DBMS_OUTPUT.PUT_LINE('NOTAS DE... '||UPPER(vr_alum.APENOM));
+   v_dni := vr_alum.DNI;
+  END IF;
+
+   DBMS_OUTPUT.PUT_LINE(vr_alum.NOMBRE||' - '||vr_alum.NOTA);
+LOOP;
+  CLOSE Cur;
+     END visualizar_notas_alumnos;
+END gest_alumnos;
+/
+
+
+
+Realiza una función pública a la que se le pase el parámetro DNI y devuelve una variable registro con los datos del alumno. 
+vr_alumno tr_alumno;
+
+TYPE tr_alumno IS RECORD
+(DNIALU ALUMNOS.DNI%TYPE,APENOMBRE ALUMNOS.APENOM%TYPE,DIRECCION ALUMNOS.DIREC%TYPE,POBLACION ALUMNOS.POBLA%TYPE,TELEFONO ALUMNOS.TELEF%TYPE);
+
+FUNCTION DEVUELVE_ALUMNO (V_DNI ALUMNOS.DNI%TYPE)
+RETURN tr_alumno;
+
+FUNCTION DEVUELVE_ALUMNO (V_DNI ALUMNOS.DNI%TYPE)
+RETURN tr_alumno
+IS
+    select * into vr_alumno from alumnos where dni=v_dni;
+  return vr_alumno;
+END DEVUELVE_ALUMNO;
+
+
+
+
+
+
+
+
+
