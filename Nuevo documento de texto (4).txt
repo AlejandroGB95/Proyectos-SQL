@@ -1,0 +1,74 @@
+DECLARE
+	V_ACARGO NUMBER; 
+BEGIN
+      SELECT COUNT(*) INTO V_ACARGO FROM EMPLE
+                       WHERE DIR=7369;
+      v_acargo:=v_acargo*100;
+	DBMS_OUTPUT.PUT_LINE(V_ACARGO);
+end;
+/
+
+
+CREATE OR REPLACE TRIGGER salario_mas5_emple
+AFTER UPDATE OF SALARIO
+ON emple
+FOR EACH ROW
+WHEN (new.salario > (old.salario+(old.salario*0.05))) 
+BEGIN
+insert INTO auditaremple
+VALUES ('FECHA '|| to_char(SYSDATE,'dd/mm/yyyy hh:mm:ss') || '  ' ||:old.emp_no ||' '
+||:old.apellido || 'SALARIO ANTIGUO '||:old.salario ||'NUEVO SALARIO '||:new.salario);
+END;
+/
+
+
+
+
+CREATE OR REPLACE TRIGGER modifica_datos_emple
+AFTER UPDATE OR INSERT OR DELETE
+ON EMPLE
+FOR EACH ROW
+BEGIN
+if deleting then
+insert into auditaremple
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' se ha borrado');
+elsif inserting then
+insert into auditaremple
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:new.emp_no||:new.apellido||' se ha insertado');
+elsif updating ('EMP_NO') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo emp_no: '||:old.emp_no||' nuevo emp_no: '||:new.emp_no);
+elsif updating ('APELLIDO') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo apellido: '||:old.apellido||' nuevo apellido: '||:new.apellido);
+elsif updating ('OFICIO') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo oficio: '||:old.oficio||' nuevo oficio: '||:new.oficio);        
+elsif updating ('DIR') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo director: '||:old.director||' nuevo director: '||:new.director);
+elsif updating ('FECHA_ALT') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antigua fecha_alta: '||:old.fecha_alt||' nueva fecha_alta: '||:new.fecha_alt);
+elsif updating ('SALARIO') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo salario: '||:old.salario||' nuevo salario: '||:new.salario);
+elsif updating ('COMISION') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antigua comision: '||:old.COMISION||' nueva comision: '||:new.comision);
+elsif updating ('DEPT_NO') THEN
+	insert int auditaremple 
+values (to_char(sysdate,'dd/mm/yy hh:mm:ss ')||:old.emp_no||:old.apellido||' antiguo departamento: '||:old.dept_no||' nuevo departamento: '||:new.dept_no);
+
+end if;
+end;
+/
+
+
+
+
+
+
+
+
+

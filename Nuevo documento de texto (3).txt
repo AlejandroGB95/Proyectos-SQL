@@ -1,0 +1,798 @@
+DECLARE
+   CURSOR C1 IS
+   SELECT APELLIDO FROM EMPLE WHERE DEPT_NO=20;
+   V_APELLIDO VARCHAR2(10);
+BEGIN
+   OPEN C1;
+   FETCH C1 INTO V_APELLIDO;
+   WHILE C1%FOUND LOOP
+      DBMS_OUTPUT.PUT_LINE(TO_CHAR(C1%ROWCOUNT,'99.')||V_APELLIDO);
+      FETCH C1 INTO V_APELLIDO;
+   END LOOP;
+   CLOSE C1;
+END;
+
+
+CREATE OR REPLACE PROCEDURE ver_emple_por_dept (
+dep VARCHAR2)
+AS
+  v_dept NUMBER(2);
+  CURSOR c1 IS
+  SELECT apellido FROM emple WHERE dept_no = v_dept;
+  v_apellido VARCHAR2(10);
+BEGIN
+  v_dept := dep;
+  OPEN c1;
+  FETCH c1 INTO v_apellido;
+  WHILE c1%FOUND LOOP
+     DBMS_OUTPUT.PUT_LINE(v_apellido);
+     FETCH c1 INTO v_apellido;
+  END LOOP;
+  CLOSE c1;
+END;
+
+
+CREATE OR REPLACE PROCEDURE apellido_afin (
+cadena_Apellido VARCHAR2)
+AS
+  v_apellido_parcial emple.apellido%type;
+  CURSOR c1 IS
+  SELECT apellido, emp_no FROM emple WHERE apellido LIKE '%'||v_apellido_parcial||'%';
+  v_apellido emple.apellido%type;
+  v_emp_no emple.emp_no%type;
+  
+BEGIN
+  v_apellido_parcial := cadena_Apellido;
+  OPEN c1;
+  FETCH c1 INTO v_apellido,v_emp_no;
+  WHILE c1%FOUND LOOP
+     DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||v_emp_no);
+     FETCH c1 INTO v_apellido,v_emp_no;
+  END LOOP;
+  CLOSE c1;
+END;
+
+CREATE OR REPLACE PROCEDURE apellido_alta 
+AS
+  v_apellido_parcial emple.apellido%type;
+  CURSOR c1 IS
+  SELECT apellido, fecha_alt FROM emple order by apellido;
+  v_apellido emple.apellido%type;
+  v_fecha_alta emple.fecha_alt%type;
+  
+BEGIN
+  
+  OPEN c1;
+  FETCH c1 INTO v_apellido,v_fecha_alta;
+  WHILE c1%FOUND LOOP
+     DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||v_fecha_alta);
+     FETCH c1 INTO v_apellido,v_fecha_alta;
+  END LOOP;
+  CLOSE c1;
+END;
+/
+
+CREATE OR REPLACE FUNCTION TEMA_EJEMPLARES (TEMA_ELEGIDO CHAR)
+  RETURN NUMBER
+AS
+  --Bienve, 6/04/2022
+  --Función para saber el numero de ejemplares de un tema dado por parámetros
+  v_ejemplar libreria.ejemplares%type;
+BEGIN
+  select ejemplares into v_ejemplar from libreria where tema = tema_elegido;
+  return v_ejemplar;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+     RAISE_APPLICATION_ERROR(-20000,'ERROR, no hay datos');
+  WHEN OTHERS THEN
+     RAISE_APPLICATION_ERROR(-20000,'ERROR EN LA APLICACIÓN');
+END TEMA_EJEMPLARES;
+/
+
+
+
+
+BEGIN
+DBMS_OUTPUT.PUT_LINE(TEMA_EJEMPLARES);
+END;
+/
+
+
+CREATE OR REPLACE PROCEDURE listar_emple
+AS
+  CURSOR c1 IS
+      select apellido, salario, dept_no from emple
+      order by dept_no, apellido;
+  vr_emp c1%rowtype;
+  dep_ant EMPLE.DEPT_NO%TYPE DEFAULT 0;
+  cont_emple NUMBER(4) DEFAULT 0;
+  sum_sal NUMBER(9,2) DEFAULT 0;
+  tot_emple NUMBER(4) DEFAULT 0;
+  tot_sal NUMBER(10,2) DEFAULT 0;
+BEGIN
+  OPEN c1;
+   LOOP
+        FETCH c1 INTO vr_emp;
+   /* Si es el primer Fetch inicializamos dep_ant */
+      IF c1%ROWCOUNT = 1 THEN
+         dep_ant := vr_emp.dept_no;
+      END IF;
+    /* Comprobación nuevo departamento (o finalización) y resumen del anterior e inicialización
+    de contadores y acumuladores parciales */
+   IF dep_ant <> vr_emp.dept_no OR c1%NOTFOUND THEN
+      DBMS_OUTPUT.PUT_LINE('*** DEPTO: ' || dep_ant ||
+      ' NUM. EMPLEADOS: ' || cont_emple ||
+      ' SUM. SALARIOS: ' || sum_sal);
+   dep_ant := vr_emp.dept_no;
+               tot_emple := tot_emple + cont_emple;
+      tot_sal := tot_sal + sum_sal;
+      cont_emple := 0;
+      sum_sal := 0;
+      END IF;
+   EXIT WHEN c1%NOTFOUND; /* Condición de salida del bucle */
+   /* Escribir Líneas de detalle incrementar y acumular */
+          DBMS_OUTPUT.PUT_LINE(RPAD(vr_emp.apellido,10) || ' * '
+          ||LPAD(TO_CHAR(vr_emp.salario,'999,999'),12));
+       cont_emple := cont_emple + 1;
+          sum_sal := sum_sal + vr_emp.salario;
+    END LOOP;
+    CLOSE c1;
+    /* Escribir totales informe */
+    DBMS_OUTPUT.PUT_LINE(' ****** NUMERO TOTAL EMPLEADOS: '
+    || tot_emple || ' TOTAL SALARIOS: ' || tot_sal);
+END listar_emple;
+/
+
+
+CREATE OR REPLACE PROCEDURE listar_emple_for_oficio
+AS
+/*Bienve, 19/04/2022
+listar empleados con bucle for CORTANDO POR OFICIO*/
+  CURSOR c1 IS
+      select apellido, salario, dept_no, oficio from emple
+      order by dept_no, apellido, oficio;
+  vr_emp c1%rowtype;
+  oficio_anterior EMPLE.OFICIO%TYPE;
+  dep_ant EMPLE.DEPT_NO%TYPE DEFAULT 0;
+  cont_emple NUMBER(4) DEFAULT 0;
+  sum_oficio NUMBER (4) DEFAULT 0;
+  sum_sal NUMBER(9,2) DEFAULT 0;
+  tot_emple NUMBER(4) DEFAULT 0;
+  tot_sal NUMBER(10,2) DEFAULT 0;
+BEGIN
+  FOR vr_emp in c1 LOOP
+      /*Primera lectura*/
+         IF c1%ROWCOUNT = 1 THEN
+           dep_ant := vr_emp.dept_no;
+           oficio_anterior := vr_emp.oficio;
+         END IF;
+   IF dep_ant <> vr_emp.dept_no OR c1%NOTFOUND THEN
+      DBMS_OUTPUT.PUT_LINE('OFICIO: '|| oficio_anterior ||
+      '  NUM. EMPLEADOS: '||SUM_OFICIO);
+       oficio_anterior := vr_emp.oficio;
+      SUM_OFICIO:=0;
+      DBMS_OUTPUT.PUT_LINE('*** DEPTO: ' || dep_ant ||
+      ' NUM. EMPLEADOS: ' || cont_emple ||
+      ' SUM. SALARIOS: ' || sum_sal);
+   dep_ant := vr_emp.dept_no;
+               tot_emple := tot_emple + cont_emple;
+      tot_sal := tot_sal + sum_sal;
+      cont_emple := 0;
+      sum_sal := 0;
+   END IF;
+   IF oficio_anterior <> vr_emp.oficio then
+      DBMS_OUTPUT.PUT_LINE('OFICIO: '|| oficio_anterior ||
+      '  NUM. EMPLEADOS: '||SUM_OFICIO);
+       oficio_anterior := vr_emp.oficio;
+       SUM_OFICIO:=0;
+   END IF;
+   DBMS_OUTPUT.PUT_LINE(RPAD(vr_emp.apellido,10) || ' * '
+          ||LPAD(TO_CHAR(vr_emp.salario,'999,999'),12));
+       cont_emple := cont_emple + 1;
+          sum_sal := sum_sal + vr_emp.salario;
+          sum_oficio:= sum_oficio + 1;
+   END LOOP;
+   DBMS_OUTPUT.PUT_LINE(' ****** NUMERO TOTAL EMPLEADOS: '
+    || tot_emple || ' TOTAL SALARIOS: ' || tot_sal);
+END listar_emple_for_oficio;
+/
+
+
+CREATE OR REPLACE PROCEDURE sube_salario (
+num_dept_elegido NUMBER,
+subida NUMBER)
+AS
+  /* Bienve, 19/04/2022
+  Programa que se le pasen el departamento y la subida y actualice los salarios*/
+  CURSOR c_emple is SELECT EMP_NO, SALARIO, ROWID FROM EMPLE WHERE DEPT_NO=NUM_DEPT_ELEGIDO;
+  vc_emple c_emple%ROWTYPE;
+BEGIN 
+  OPEN C_EMPLE;
+  FETCH C_EMPLE INTO VC_EMPLE;
+  WHILE C_EMPLE%FOUND LOOP
+    UPDATE EMPLE SET SALARIO = SALARIO + SUBIDA
+    WHERE ROWID = VC_EMPLE.ROWID;
+    FETCH C_EMPLE INTO VC_EMPLE;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE('SE HAN ACTUALIZADO '|| C_EMPLE%ROWCOUNT||' EMPLEADOS');
+  CLOSE C_EMPLE;
+END SUBE_SALARIO;
+/
+
+CREATE OR REPLACE PROCEDURE lista_dept
+AS
+  /* Bienve, 6/04/2022
+  Programa que muestra el departamento y el numero de empleados por departamento*/
+  CURSOR c1 IS
+      SELECT dnombre, count(*)suma FROM emple, depart where emple.dept_no=depart.dept_no group by dnombre, emple.dept_no order by emple.dept_no;
+  vc_dept c1%ROWTYPE;
+BEGIN
+  OPEN c1;
+  FETCH c1 INTO vc_dept;
+  WHILE c1%FOUND LOOP
+     DBMS_OUTPUT.PUT_LINE('DEPARTAMENTO DE '||vc_dept.dnombre||' NUM. EMPLEADOS: '||vc_dept.suma);
+  FETCH c1 INTO vc_dept;
+  END LOOP;
+ CLOSE c1;
+END;
+/
+
+
+CREATE OR REPLACE PROCEDURE salarios_altos
+AS
+  CURSOR c1 IS
+  SELECT apellido, salario FROM emple order by salario desc;
+  v_apellido emple.apellido%type;
+  salario emple.salario%type;
+ 
+BEGIN
+   OPEN c1;
+  FETCH c1 INTO v_apellido,salario;
+  WHILE c1%ROWCOUNT<=5 LOOP
+     DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||salario);
+    FETCH c1 INTO v_apellido,salario;
+ END LOOP;
+CLOSE c1;
+END;
+/
+
+
+CREATE OR REPLACE PROCEDURE salario_oficio2
+AS
+  CURSOR c1 IS
+  SELECT apellido, salario FROM emple order by salario desc;
+  v_apellido emple.apellido%type;
+  salario emple.salario%type;
+ 
+BEGIN
+   OPEN c1;
+  FETCH c1 INTO v_apellido,salario;
+  WHILE c1%ROWCOUNT<=5 LOOP
+     DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||salario);
+    FETCH c1 INTO v_apellido,salario;
+ END LOOP;
+CLOSE c1;
+END;
+/
+
+
+
+
+drop  table ALUMNOS2;
+create table ALUMNOS2
+(
+  ALUMNO    VARCHAR2(50),
+  NIE       NUMBER,
+  CP        VARCHAR2(5),
+  LOCALIDAD VARCHAR2(20),
+  GRUPO     VARCHAR2(10)
+)
+;
+
+drop  table GRUPOS;
+create table GRUPOS
+(
+  GRUPO VARCHAR2(10) not null,
+  AULA  VARCHAR2(6),
+  TUTOR NUMBER
+)
+;
+
+drop  table PROFESORES;
+create table PROFESORES
+(
+  ID_PROF      NUMBER,
+  PROFESOR     VARCHAR2(35),
+  ABREVIATURA  VARCHAR2(20),
+  DEPARTAMENTO VARCHAR2(45)
+)
+;
+drop  table MATRICULAS;
+create table MATRICULAS
+(
+  ALUMNO	     NUMBER,
+  ASIGNATURA  	 VARCHAR2(12)
+)
+;
+drop  table ASIGNATURAS2;
+create table ASIGNATURAS2
+(
+  NOMBRE     VARCHAR2(50),
+  CLAVE  	 VARCHAR2(12),
+  CREDITOS 	 NUMBER,
+  GRUPO	     VARCHAR2(10),
+  PROFESOR 	 NUMBER
+)  
+;
+
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Programaci�n', 'PROG', 8, 10014,'1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Lenguajes de Marcas','LM', 4, 10035, '1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Bases de Datos', 'BD', 8, 10045,'1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Sistemas', 'SIMR', 6,10014,'1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Entornos de Desarrollo', 'EntDes', 3, 10015,'1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Formaci�n y Orientacion Laboral', 'FOL', 2,10000,'1DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Desarrollo Web en Entorno Cliente', 'ClIENTE', 8,10014,'2DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Desarrollo Web en Entorno Servidor', 'SERVIDOR', 8, 10015,'2DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Despliegue de Aplicaciones Web', 'DESPLIEGUE', 4,10001,'2DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Dise�o de Interfaces Gr�ficas', 'DISE�O', 8, 10045,'2DAW');
+INSERT INTO ASIGNATURAS2 (NOMBRE, CLAVE, CREDITOS,PROFESOR,GRUPO) VALUES('Relaciones en Entornos Laborales', 'RET', 2,10000,'2DAW');
+
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(1,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(1,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(2,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(2,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(3,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(3,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(4,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(4,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'LM');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'SIMR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'EntDes');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(5,'FOL');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(6,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(6,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'LM');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'SIMR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'EntDes');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(7,'FOL');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'LM');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'SIMR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'EntDes');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(8,'FOL');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(9,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(9,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'LM');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'SIMR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'EntDes');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(10,'FOL');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(11,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(11,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(12,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(12,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(12,'LM');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(12,'SIMR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(12,'EntDes');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(13,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(13,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(14,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(14,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(15,'PROG');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(15,'BD');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(100,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(100,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(100,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(100,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(101,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(101,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(101,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(101,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(102,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(102,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(102,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(102,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(103,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(103,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(103,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(103,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(104,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(104,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(104,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(104,'RET');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(105,'CLIENTE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(106,'SERVIDOR');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(107,'DESPLIEGUE');
+insert into MATRICULAS(ALUMNO, ASIGNATURA) VALUES(107,'RET');
+
+
+
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Anet Aguilar, Antonio', 1, '29350', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Navarrete Rodr�guez, Ernesto', 2, '11693', 'Alcal� del Valle', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Castro Rayas , Christian', 3, '29350', 'Arriate', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Becerra Rivera, Cristina', 4, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Bl�zquez Jim�nez, Nazaret', 5, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Combarros  Recuerda, Jaime', 6, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Fern�ndez Torres, Jaime', 7, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Guerrero Hormigo, Carlos', 8, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Mendoza Zambrana, Alejandro', 9, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Perjo Codes, Javier', 10, '29493', 'Benadalid', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Rojas Rosado, Alejandro', 11, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('S�nchez Rubio, Juan Jos�', 12, '29420', 'El Burgo', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Gamarro Orozco, Antonio �ngel', 355515, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Sierra Fern�ndez, Jos�', 13, '29400', 'Ronda', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Tolosana Tenorio, Fernando', 14, '29350', 'Arriate', '1DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Varela S�nchez, Aar�n', 15, '29400', 'Ronda', '1DAW');
+
+
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Colorado Alcocer, Jos� Antonio', 100, '29400', 'Ronda', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Dominguez Garc�a, Alejandro', 101, '29391', 'Gauc�n', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Espinosa Terroba, Elena', 102, '29601', 'Ronda', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Flores Valero, Ram�n', 103, '29400', 'Ronda', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Florido Becerra, Juli�b', 104, '29400', 'Ronda', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Gazaba Gonz�lez, Manuel', 105, '29350', 'Arriate', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('S�nchez Ortega, Cristobal', 106, '29400', 'Ronda', '2DAW');
+insert into ALUMNOS2 (ALUMNO, NIE, CP, LOCALIDAD, GRUPO)
+values ('Ruiz Torres, Francisco Manuel', 107, '29400', 'Ronda', '2DAW');
+
+
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1AF', 'Z2-18', 10010);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1BA', 'Z2-24', 10023);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1BCT-B', 'Z2-22', 10002);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1BS-A', 'Z2-21', 10003);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1BSB-BH', 'Z2-25', 10037);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1BS-C', 'Z2-24', 10041);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+										values ('1DAW', 'Z2-20', 10001);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1ESO-A', 'Z1-19', 10030);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1ESO-B', 'Z1-20', 10047);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1ESO-C', 'Z1-16', 10008);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1ESO-D', 'Z1-08', 10021);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1ESO-E', 'Z1-06', 10017);
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+values ('1GA-A', 'Z2-16', 10022);
+
+insert into GRUPOS (GRUPO, AULA, TUTOR)
+										values ('2DAW', 'Z2-19', 10014);
+
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10000,'Montilla Gerrero, Jos� Miguel', 'Mon. G, JM', 'Formaci�n y Orientaci�n Laboral');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10001,'Rafael Pedraza L�pez', 'Ped. L, R', 'Inform�tica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10002,'D�az Jim�nez, Patricia', 'D�a. J, P', 'Educaci�n F�sica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10003,'Miranda Carrillo, Agust�n', 'Mir. C, A', 'Filosof�a P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10004,'S�nchez V�zquez, Emilio', 'S�n. V, E', 'Filosof�a P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10005,'M�rquez Garc�a, Carlos', 'M�r. G, C', 'Formaci�n y Orientaci�n Laboral P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10006,'Maqueda Garc�a, Remedios', 'Maq. G, R', 'Formaci�n y Orientaci�n Laboral P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10007,'Mu�oz Jaramillo, Manuel', 'Mu�. J, M', 'Franc�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10008,'Jim�nez Garc�a, Jer�nimo', 'Jim. G, J', 'Geograf�a e Historia P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10009,'Ord��ez Badillo, Daniel', 'Ord. B, D', 'Geograf�a e Historia P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10010,'�lvarez Gonz�lez, Ana Isabel', '�lv. G, AI', 'Geograf�a e Historia P.E.S.');
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10011,'Montilla Romero, Encarnaci�n', 'Mon. R, E', 'Geograf�a e Historia P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10012,'Aguilar Guerrero, Tiburcio', 'Agu. G, T', 'Geograf�a e Historia P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10013,'Fern�ndez Lara, Antonio Germ�n', 'Fer. L, AG', 'Geograf�a e Historia P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10014,'Torres Luj�n, Pedro Manuel', 'Tor. L, PM', 'Inform�tica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10015,'Verd� de la Vega, Mar�a Dolores', 'Ver. dlV, MD', 'Inform�tica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10016,'Fern�ndez Fern�ndez, Ricardo', 'Fer. F, R', 'Inform�tica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10017,'G�mez Mora, Raquel', 'G�m. M, R', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10018,'Salinas And�jar, Mar�a Dolores', 'Sal. A, MD', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10019,'Laguia Casaus, Ana Irene', 'Lag. C, AI', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10020,'Carrasco Garc�a, Mar�a Jos�', 'Car. G, MJ', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10021,'Mesa Romero, Juan Manuel', 'Mes. R, JM', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10022,'Ruiz Granado, Elena', 'Rui. G, E', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10023,'Badillo Garc�a, Mar�a Bel�n', 'Bad. G, MB', 'Ingl�s P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10024,'Maillo Servi�n, Francisco M.', 'Mai. S, FM', 'Instalaciones Electrot�cnicas P.T.F.P.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10025,'Jarillo Guerra, Vicente Jes�s', 'Jar. G, VJ', 'Instalaciones Electrot�cnicas P.T.F.P.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10026,'Mart�nez Pareja, Anselmo', 'Mar. P, A', 'Instalaciones Electrot�cnicas P.T.F.P.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10027,'De Alba S�nchez, �ngel Manuel', 'Dea. S, �M', 'Instalaciones Electrot�cnicas P.T.F.P.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10028,'Lisbona Molina, Antonio Javier', 'Lis. M, AJ', 'Instal.Electrot�cnicas Ptfp. (Pcpi)');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10029,'Dom�nguez Rodr�guez, Mar�a Sonia', 'Dom. R, S', 'Italiano P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10030,'Jim�nez Bravo, Mar�a Asunci�n', 'Jim. B, MA', 'Lengua Castellana y Literatura P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10031,'Villalba Anaya, Pedro Antonio', 'Vil. A, PA', 'Lengua Castellana y Literatura P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10032,'Garc�a Garc�a, Mar�a Jes�s', 'Gar. G, MJ', 'Lengua Castellana y Literatura P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10033,'Perujo Mart�n, Dolores', 'Per. M, D', 'Lengua Castellana y Literatura P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10034,'Mart�nez Garc�a, Ana Bel�n', 'Mar. G, AB', 'Lengua Castellana y Literatura P.E.S.');
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10035,'Bernal Bravo, Josu� Manuel', 'Ber. B, JM', 'Inform�tica P.E.S.');
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10036,'Vaquero Arroyo, Carmen', 'Vaq. A, C', 'Lengua Castellana y Literatura P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10037,'Toscano Ben�tez, Dolores', 'Tos. B,D', 'Lengua Castellana y Literatura P.E.S.');
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10038,'Cueto Trujillo, Ascensi�n', 'Cue. T, A', 'Lengua Extranjera-Franc�s (Secundaria)');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10039,'Medina R�os, Paz', 'Med. R, P', 'Lengua Extranjera-Ingl�s (Secundaria)');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10040,'Prats Fons, Sergio Jes�s', 'Pra. F, SJ', 'Matem�ticas');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10041,'Sanju�n Haro, Carlos', 'San. H, C', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10042,'Gonz�lez Garc�a, Ana', 'Gon. G, A', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10043,'Rodr�guez Gallego, Mar�a del Mar', 'Rod. G, MdM', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10044,'Viruel Ben�tez, Francisco', 'Vir. B, F', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10045,'�vila �vila, Mar�a Mercedes', '�vi. �, MM', 'Inform�tica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10046,'Mu�oz Le�n, Juan Jos�', 'Mu�. L, JJ', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10047,'Guti�rrez Amaya, Isabel M�', 'Gut. A, IM', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10048,'Garc�a Garc�a, Cristina', 'Gar. G, C', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10049,'Conde Caballero, Rafael Jos�', 'Con. C, RJ', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10050,'Cana Ruiz, Juan', 'Can. R, J', 'Matem�ticas P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10051,'Huertas Moreno, Sara', 'Hue. M, S', 'M�sica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10052,'Garrido Jorge, Jos� Manuel', 'Gar. J, JM', 'M�sica P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10053,'Calvo Navas, Jos� �ngel', 'Cla. N, J�', 'Oficina de Proyec. Construcci�n P.T.F.P.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10054,'P�rez L�pez, Jes�s', 'P�r. L, J', 'Oficina de Proyec. Construcci�n P.T.F.P.');
+
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10055,'Garc�a Garc�a, Luis', 'Gar. G, L', 'Operac. y Eq. Prod.Agraria Ptfp. (Pcpi)');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10056,'Carrera S�nchez, Ismael', 'Car. S, I', 'Orientaci�n Educativa P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10057,'Porras S�nchez, Eva Mar�a', 'Por. S, EM', 'Orientaci�n Educativa P.E.S.');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10058,'Garc�a Gil, Almudena', 'Gar. G, A', 'Pedagog�a Terapeutica Eso');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10059,'Cortes Galv�n, Marina', 'Cor. G, M', 'Pedagog�a Terapeutica Eso');
+insert into PROFESORES (ID_PROF, PROFESOR, ABREVIATURA, DEPARTAMENTO)
+values (10060,'Aguilar Gil, Mar�a Carmen', 'Agu. G, MC', 'Pedagog�a Terapeutica Eso');
+
+
+alumnos2: PK nie fk grupo
+matriculas: pk alumno (nie), asignatura (clave). fk alumnos2 y asignaturas2. on delete cascade.
+profesores: pk id_prof 
+asignaturas2: pk clave fk grupo y fk profesor
+grupos: pk grupo fk profesor (tutor)
+
+
+ADD CONSTRAINT PK_ALUMNO PRIMARY KEY (NIE)
+ALTER TABLE ALUMNOS2 
+  ADD CONSTRAINT PK_ALUMNO2 PRIMARY KEY (NIE)
+  ADD CONSTRAINT FK_ALUMNO FOREIGN KEY (GRUPO) REFERENCES GRUPOS;  
+
+
+ALTER TABLE MATRICULAS 
+ ADD CONSTRAINT PK_MATRICULA PRIMARY KEY(ALUMNO,ASIGNATURA)
+ ADD CONSTRAINT FK_MATRICULA_AL FOREIGN KEY (ALUMNO) REFERENCES ALUMNOS2 ON DELETE CASCADE
+ ADD CONSTRAINT FK_M_AS FOREIGN KEY (ASIGNATURA) REFERENCES ASIGNATURAS2 ON DELETE CASCADE;
+
+ALTER TABLE PROFESORES
+ ADD CONSTRAINT PK_PROFE PRIMARY KEY (ID_PROF);
+
+ALTER TABLE ASIGNATURAS2
+  ADD CONSTRAINT PK_ASIG PRIMARY KEY (CLAVE)
+  ADD CONSTRAINT FK_AS_GR FOREIGN KEY (GRUPO) REFERENCES GRUPOS 
+  ADD CONSTRAINT FK_AS_PR FOREIGN KEY (PROFESOR) REFERENCES PROFESORES;
+
+ALTER TABLE GRUPOS 
+  ADD CONSTRAINT PK_G PRIMARY KEY (GRUPO)
+  ADD CONSTRAINT FK_TUTOR FOREIGN KEY (TUTOR) REFERENCES PROFESORES;
+
+
+ALTER TABLE ASIGNATURAS2
+ ADD CONSTRAINT CHECK_BETWEEN CHECK (CREDITOS BETWEEN 2 AND 8);
+
+
+CREATE TABLE auditarasig (
+ CLAVE_ASIG VARCHAR2(12),
+ FECHA_HORA TIMESTAMP,
+ OPERACION VARCHAR2(20),
+ V_ANTERIOR VARCHAR2(50),
+ V_NUEVO VARCHAR2(50)
+);
+
+
+CREATE OR REPLACE TRIGGER auditar_asig_t
+AFTER UPDATE OR INSERT OR DELETE
+ON ASIGNATURAS2
+FOR EACH ROW
+BEGIN
+  IF deleting then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Borrado', :old.nombre||:old.clave||:old.creditos||:old.grupo||:old.profesor,null);
+  ELSIF inserting then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Inserción',null, :new.nombre||:new.clave||:new.creditos||:new.grupo||:new.profesor);
+  ELSIF updating ('NOMBRE') then 
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Actualizar nombre',:old.nombre, :new.nombre); 
+  ELSIF updating ('CLAVE') then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Actualizar clave',:old.clave, :new.clave); 
+  ELSIF updating ('CREDITOS') then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Actualizar creditos',:old.creditos, :new.creditos); 
+  ELSIF updating ('GRUPO') then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Actualizar grupo',:old.grupo, :new.grupo); 
+  ELSIF updating ('PROFESOR') then
+    insert into auditarasig values (:old.clave,SYSTIMESTAMP,'Actualizar profesor',:old.profesor, :new.profesor); 
+  END IF;
+END;
+/
+
+INSERT INTO ASIGNATURAS2 VALUES ('Kentucky Fried Chicken','KFC',9,'1DAW',10000);
+INSERT INTO ASIGNATURAS2 VALUES ('Kentucky Fried Chicken','KFC',8,'1DAW',10000);
+UPDATE ASIGNATURAS2 SET CREDITOS=7 WHERE CLAVE='KFC';
+DELETE FROM ASIGNATURAS2 WHERE CLAVE= 'KFC';
+
+
+NIF DEL ALUM
+EN MATRICULAS CON EL NIF SACAR LA CLAVE DE LA ASIGNATURA
+CON ESA CLAVE SACAR EL CURSO
+
+SELECT ALUMNO FROM ALUMNOS2 WHERE NIE IN (SELECT DISTINCT ALUMNO FROM MATRICULAS WHERE ASIGNATURA IN (SELECT CLAVE FROM ASIGNATURAS2 WHERE GRUPO='2DAW')) AND 
+ALUMNOS2.ALUMNO IN (SELECT ALUMNO FROM ALUMNOS2 WHERE GRUPO='1DAW');
+SELECT ASIGNATURA FROM MATRICULAS WHERE ALUMNO='1';
+SELECT GRUPO FROM ASIGNATURAS2 WHERE CLAVE IN (SELECT ASIGNATURA FROM MATRICULAS WHERE ALUMNO='1'); 
+
+
+
+CREATE OR REPLACE VIEW AMBOS_CURSOS (ALUMNO)
+  AS SELECT ALUMNO FROM ALUMNOS2 WHERE NIE IN (SELECT DISTINCT ALUMNO FROM MATRICULAS WHERE ASIGNATURA IN (SELECT CLAVE FROM ASIGNATURAS2 WHERE GRUPO='2DAW')) AND 
+ALUMNOS2.ALUMNO IN (SELECT ALUMNO FROM ALUMNOS2 WHERE GRUPO='1DAW');
+
+
+CREATE OR REPLACE VIEW RONDA_ARRIATE (ALUMNO)
+AS SELECT ALUMNO FROM ALUMNOS2 WHERE LOCALIDAD='Ronda' or LOCALIDAD='Arriate';
+
+
+SELECT DEPARTAMENTO, COUNT(*) FROM PROFESORES GROUP BY DEPARTAMENTO;
+
+SELECT DEPARTAMENTO FROM PROFESORES GROUP BY DEPARTAMENTO HAVING COUNT(*)=(SELECT MAX(COUNT(*)) FROM PROFESORES GROUP BY DEPARTAMENTO);
+
+
+
+
+CREATE OR REPLACE PROCEDURE LISTA_ALUMNO_ANIDADO
+AS
+  CURSOR C1 IS
+   SELECT NOTAS.DNI, APENOM, NOTA, NOMBRE FROM ASIGNATURAS, NOTAS, ALUMNOS WHERE ASIGNATURAS.COD=NOTAS.COD AND ALUMNOS.DNI=NOTAS.DNI ORDER BY APENOM, NOTA DESC;
+
+  TYPE tr_notas is RECORD (
+   DNI NOTAS.DNI%TYPE,
+   APENOM ALUMNOS.APENOM%TYPE,
+   NOTA NOTAS.NOTA%TYPE,
+  NOMBRE ASIGNATURAS.NOMBRE%TYPE
+  );
+  TYPE ta_notas IS TABLE OF tr_notas;
+  va_nota ta_notas; 
+  n INTEGER :=0;
+BEGIN
+  va_nota := ta_notas();
+ FOR vc_nota IN C1 LOOP
+   n:= c1%rowcount;
+   va_nota.extend;
+   va_nota(n):= vc_nota;
+ END LOOP;
+
+ FOR i IN 1..n LOOP
+   DBMS_OUTPUT.PUT_LINE(va_nota(i).dni||' '||va_nota(i).apenom||' '||va_nota(i).nota||' '||va_nota(i).nombre);
+ END LOOP;
+END;
+/
+
+
+
+EXECUTE LISTA_ALUMNO_ANIDADO
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,123 @@
+-- Como un VArray
+DECLARE
+  CURSOR c_depart IS
+      SELECT DNOMBRE,COUNT (EMP_NO) NUMEMPLE
+      FROM DEPART, EMPLE
+      WHERE DEPART.DEPT_NO = EMPLE.DEPT_NO
+      GROUP BY DEPART.DEPT_NO, DNOMBRE;
+      
+  TYPE TR_DEPTO IS RECORD (
+     NOMBREDEPT DEPART.DNOMBRE%TYPE,
+     NUMEMPLE INTEGER
+     );
+   TYPE TV_DEPTO IS VARRAY (6) OF TR_DEPTO;
+   
+   VA_DEPARTAMENTOS TV_DEPTO := TV_DEPTO (NULL,NULL,NULL,NULL,NULL,NULL);
+   n INTEGER := 0;
+BEGIN
+   
+   FOR VC IN C_DEPART LOOP
+      N:= C_DEPART%ROWCOUNT;
+      VA_DEPARTAMENTOS(N) := VC;
+   END LOOP;
+   
+   FOR I IN 1..N LOOP
+    DBMS_OUTPUT.PUT_LINE('* Dnombre: '||VA_DEPARTAMENTOS(I).NOMBREDEPT||' Nº Empleados: '||va_departamentos(i).numemple);
+   END LOOP;
+END;
+/
+
+
+
+Como una Tabla anidada.
+
+
+DECLARE
+  CURSOR c_depart IS
+      SELECT DNOMBRE,COUNT (EMP_NO) NUMEMPLE
+      FROM DEPART, EMPLE
+      WHERE DEPART.DEPT_NO = EMPLE.DEPT_NO
+      GROUP BY DEPART.DEPT_NO, DNOMBRE;
+      
+  TYPE TR_DEPTO IS RECORD (
+     NOMBREDEPT DEPART.DNOMBRE%TYPE,
+     NUMEMPLE INTEGER
+     );
+   TYPE TV_DEPTO IS TABLE OF TR_DEPTO;
+   VA_DEPARTAMENTOS TV_DEPTO := TV_DEPTO ();
+   n INTEGER := 0;
+BEGIN
+   
+   FOR VC IN C_DEPART LOOP
+      N:= C_DEPART%ROWCOUNT;
+      VA_DEPARTAMENTOS.EXTEND;
+      VA_DEPARTAMENTOS(N) := VC;
+   END LOOP;
+   
+   FOR I IN 1..N LOOP
+    DBMS_OUTPUT.PUT_LINE('* Dnombre: '||VA_DEPARTAMENTOS(I).NOMBREDEPT||' Nº Empleados: '||va_departamentos(i).numemple);
+   END LOOP;
+END;
+/
+
+Como una tabla indexada
+
+
+DECLARE 
+    CURSOR c_depar IS
+      SELECT DEPART.DEPT_NO, DNOMBRE, COUNT(EMP_NO) NUMEMPLE FROM DEPART,EMPLE 
+      WHERE DEPART.DEPT_NO = EMPLE.DEPT_NO
+      GROUP BY DEPART.DEPT_NO, DNOMBRE;
+
+    TYPE tr_depto  IS RECORD (
+       nombredep depart.dnombre%TYPE,
+       numemple INTEGER);
+    TYPE ti_depto IS TABLE OF tr_depto INDEX BY PLS_INTEGER;
+    va_departamentos ti_depto;
+    n PLS_INTEGER :=0;
+BEGIN
+   FOR vc IN c_depar LOOP
+       va_departamentos (vc.dept_no).nombredeP := vc.dnombre;
+       va_departamentos (vc.dept_no).numemple := vc.NUMEMPLE;
+   END LOOP;
+   
+   n:=  va_departamentos.LAST;
+   WHILE va_departamentos.EXISTS(n) LOOP
+     DBMS_OUTPUT.PUT_LINE ('* Dep No. : '||n||
+                           ' Dnombre: '||va_departamentos(n).nombredep||
+                           ' No. Empleados: '|| va_departamentos(n).numemple);
+     n:=va_departamentos.PRIOR(n);
+   END LOOP;
+END;
+/ 
+
+
+PAQUETE PARA GESTIONAR DEPARTAMENTOS
+
+CREATE OR REPLACE PACKAGE gest_depart
+AS
+  TYPE t_reg_depart is RECORD 
+  (num_depart depart.dept_no%TYPE,
+   nombre_depart depart.dnombre%TYPE,
+   localidad depart.loc%TYPE);
+  
+   PROCEDURE insertar_nuevo_depart(v_nombre depart.dnombre%TYPE, v_loc depart.loc%TYPE);
+   PROCEDURE borrar_depart (v_dept_borrar depart.dept_no%TYPE, v_dept_destino depart.dept_no%TYPE);
+   PROCEDURE modificar_loc_depart(v_loc_cambiar depart.loc%TYPE);
+   PROCEDURE visualizar_datos_depart (v_dept depart.dept_no%TYPE);
+   PROCEDURE visualizar_datos_depart (v_nombre depart.dnombre%TYPE);
+END gest_depart;
+/
+   
+
+
+
+
+
+
+
+
+
+
+
+       
