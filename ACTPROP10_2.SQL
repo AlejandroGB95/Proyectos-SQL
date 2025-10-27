@@ -119,27 +119,25 @@ SQL> execute apellido_afin('ar')
 PL/SQL procedure successfully completed.
 
 SQL> CREATE OR REPLACE PROCEDURE apellido_afin (
- cadena_Apellido VARCHAR2)
- AS
-       -- Bienve 5/04/2022
-       -- Procedimiento para sacar los empleados que tienen un apellido que coincide con una cadena que se pase por parámetros.
-   v_apellido_parcial emple.apellido%type;
-   CURSOR c1 IS
-   SELECT apellido, emp_no FROM emple WHERE apellido LIKE '%'||v_apellido_parcial||'%';
-   v_apellido emple.apellido%type;
-   v_emp_no emple.emp_no%type;
-
- BEGIN
-   v_apellido_parcial := cadena_Apellido;
-   OPEN c1;
-   FETCH c1 INTO v_apellido,v_emp_no;
-   WHILE c1%FOUND LOOP
-     DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||v_emp_no);
-    FETCH c1 INTO v_apellido,v_emp_no;
-  END LOOP;
-  CLOSE c1;
-END;
-/
+  2  cadena_Apellido VARCHAR2)
+  3  AS
+  4    v_apellido_parcial emple.apellido%type;
+  5    CURSOR c1 IS
+  6    SELECT apellido, emp_no FROM emple WHERE apellido LIKE '%'||v_apellido_parcial||'%';
+  7    v_apellido emple.apellido%type;
+  8    v_emp_no emple.emp_no%type;
+  9  
+ 10  BEGIN
+ 11    v_apellido_parcial := cadena_Apellido;
+ 12    OPEN c1;
+ 13    FETCH c1 INTO v_apellido,v_emp_no;
+ 14    WHILE c1%FOUND LOOP
+ 15       DBMS_OUTPUT.PUT_LINE(v_apellido||'*'||v_emp_no);
+ 16       FETCH c1 INTO v_apellido,v_emp_no;
+ 17    END LOOP;
+ 18    CLOSE c1;
+ 19  END;
+ 20  /
 
 Procedure created.
 

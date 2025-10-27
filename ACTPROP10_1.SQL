@@ -1,10 +1,5 @@
-        -- Bienve 5/04/2022
-        -- Bloque anónimo que lista los apellidos del departamento 20
-
-
 SQL> DECLARE
-
-        CURSOR C1 IS
+  2     CURSOR C1 IS
   3     SELECT APELLIDO FROM EMPLE WHERE DEPT_NO=20;
   4     V_APELLIDO VARCHAR2(10);
   5  BEGIN

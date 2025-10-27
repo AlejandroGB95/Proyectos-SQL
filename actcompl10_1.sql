@@ -44,8 +44,6 @@ LINE/COL ERROR
                                                                                                                                                       
 SQL> CREATE OR REPLACE PROCEDURE apellido_alta
   2  AS
-        -- Bienve, 5/04/2022
-        -- Procedimiento para listar los apellidos y la fecha de alta en orden alfabetico por apellido
   3    v_apellido_parcial emple.apellido%type;
   4    CURSOR c1 IS
   5    SELECT apellido, fecha_alt FROM emple order by apellido;
